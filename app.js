@@ -3,15 +3,7 @@ class ImageSegmentDisplay {
     constructor() {
         this.params = this.parseURLParams();
         this.supportedFormats = ['png', 'jpeg', 'jpg', 'gif'];
-        this.maxGridSize = { rows: 10, cols: 10 };
-        
-        // Sample images data (since no actual images were provided)
-        this.sampleImages = {
-            '1.jpeg': this.createSampleImage(800, 600, ['#1FB8CD', '#FFC185', '#B4413C']),
-            '2.png': this.createSampleImage(800, 600, ['#5D878F', '#ECEBD5', '#DB4545']),
-            '3.jpeg': this.createSampleImage(800, 600, ['#D2BA4C', '#964325', '#944454'])
-        };
-        
+        this.maxGridSize = { rows: 100, cols: 100 };
         this.currentImage = null;
         this.infoVisible = true;
         
@@ -26,67 +18,6 @@ class ImageSegmentDisplay {
             row: parseInt(urlParams.get('row')),
             column: parseInt(urlParams.get('column'))
         };
-    }
-
-    createSampleImage(width, height, colors) {
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        
-        // Create gradient background
-        const gradient = ctx.createLinearGradient(0, 0, width, height);
-        colors.forEach((color, index) => {
-            gradient.addColorStop(index / (colors.length - 1), color);
-        });
-        
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, width, height);
-        
-        // Add some geometric patterns
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-        for (let i = 0; i < 10; i++) {
-            const x = Math.random() * width;
-            const y = Math.random() * height;
-            const radius = Math.random() * 50 + 10;
-            ctx.beginPath();
-            ctx.arc(x, y, radius, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        
-        // Add grid lines for reference
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-        ctx.lineWidth = 1;
-        
-        // Vertical lines
-        for (let x = 0; x < width; x += 100) {
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, height);
-            ctx.stroke();
-        }
-        
-        // Horizontal lines
-        for (let y = 0; y < height; y += 100) {
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(width, y);
-            ctx.stroke();
-        }
-        
-        // Add text overlay
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        ctx.font = 'bold 32px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.shadowColor = 'rgba(0,0,0,0.5)';
-        ctx.shadowBlur = 4;
-        ctx.fillText('SAMPLE IMAGE', width/2, height/2 - 20);
-        
-        ctx.font = '16px Arial';
-        ctx.fillText(`${width}x${height}`, width/2, height/2 + 20);
-        
-        return canvas.toDataURL('image/jpeg', 0.8);
     }
 
     init() {
@@ -194,8 +125,8 @@ class ImageSegmentDisplay {
             };
         }
         
-        const cols = parseInt(gridMatch[1]);
-        const rows = parseInt(gridMatch[2]);
+        const rows = parseInt(gridMatch[1]);
+        const cols = parseInt(gridMatch[2]);
         
         if (cols < 1 || rows < 1 || cols > this.maxGridSize.cols || rows > this.maxGridSize.rows) {
             return {
@@ -385,35 +316,6 @@ class ImageSegmentDisplay {
     retry() {
         window.location.reload();
     }
-}
-
-// Sample image creation utility
-function createImageBlob(width, height, colors) {
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    
-    // Create colorful pattern
-    const gradient = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, Math.max(width, height)/2);
-    colors.forEach((color, index) => {
-        gradient.addColorStop(index / (colors.length - 1), color);
-    });
-    
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
-    
-    // Add pattern overlay
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-    for (let x = 0; x < width; x += 50) {
-        for (let y = 0; y < height; y += 50) {
-            if ((x + y) % 100 === 0) {
-                ctx.fillRect(x, y, 25, 25);
-            }
-        }
-    }
-    
-    return canvas;
 }
 
 // Error handling
