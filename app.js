@@ -3,6 +3,7 @@ class ImageSegmentDisplay {
     constructor() {
         this.params = this.parseURLParams();
         this.supportedFormats = ['png', 'jpeg', 'jpg', 'gif'];
+        this.availableImages= ['1.png','2.png','3.jpg','4.png','5.jpg','6.jpg'];
         this.maxGridSize = { rows: 100, cols: 100 };
         this.currentImage = null;
         this.infoVisible = true;
@@ -165,29 +166,16 @@ class ImageSegmentDisplay {
     loadImage() {
         this.showLoading();
         
-        // Check if image exists in sample images
-        if (this.sampleImages[this.params.imageName]) {
-            const img = new Image();
-            img.onload = () => {
-                this.currentImage = img;
-                this.processImage();
-            };
-            img.onerror = () => {
-                this.showError(`Failed to load image: ${this.params.imageName}`);
-            };
-            img.src = this.sampleImages[this.params.imageName];
-        } else {
-            // Try to load from assets (in case images are actually provided)
-            const img = new Image();
-            img.onload = () => {
-                this.currentImage = img;
-                this.processImage();
-            };
-            img.onerror = () => {
-                this.showError(`Image not found: ${this.params.imageName}. Available images: ${Object.keys(this.sampleImages).join(', ')}`);
-            };
-            img.src = this.params.imageName;
-        }
+        // Try to load from assets (in case images are actually provided)
+        const img = new Image();
+        img.onload = () => {
+            this.currentImage = img;
+            this.processImage();
+        };
+        img.onerror = () => {
+            this.showError(`Image not found: ${this.params.imageName}. Available images: ${Object.keys(this.availableImages).join(', ')}`);
+        };
+        img.src = this.params.imageName;
     }
 
     processImage() {
