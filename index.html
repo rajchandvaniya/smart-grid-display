@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Segment Display</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" class="loading-container">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading image segment...</div>
+    </div>
+
+    <!-- Main Display Container -->
+    <div id="displayContainer" class="display-container hidden">
+        <canvas id="segmentCanvas" class="segment-canvas"></canvas>
+        
+    </div>
+
+    <!-- Error Display -->
+    <div id="errorContainer" class="error-container hidden">
+        <div class="error-icon">⚠️</div>
+        <h2 class="error-title">Error Loading Segment</h2>
+        <p id="errorMessage" class="error-message">Unable to display image segment</p>
+        <div class="error-details">
+            <div class="error-detail-item">
+                <strong>Expected URL format:</strong><br>
+                <code>?imageName=1.jpeg&gridSize=4x3&row=1&column=2</code>
+            </div>
+            <div class="error-detail-item">
+                <strong>Available images:</strong> 1.jpeg, 2.png, 3.jpeg
+            </div>
+            <div class="error-detail-item">
+                <strong>Grid sizes:</strong> Format like "4x3" (columns x rows)
+            </div>
+            <div class="error-detail-item">
+                <strong>Position:</strong> Row and column numbers start from 1
+            </div>
+        </div>
+        <button id="retryBtn" class="btn btn--primary">Retry</button>
+    </div>
+
+    <!-- Hidden canvas for image processing -->
+    <canvas id="processingCanvas" class="processing-canvas"></canvas>
+
+    <script src="app.js"></script>
+</body>
+</html>
