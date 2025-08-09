@@ -122,7 +122,7 @@ class ImageSegmentDisplay {
         if (!gridMatch) {
             return {
                 valid: false,
-                error: 'Invalid gridSize format. Use format like "4x3" (columns x rows).'
+                error: 'Invalid gridSize format. Use format like "4x3" (rows x columns).'
             };
         }
         
@@ -181,8 +181,8 @@ class ImageSegmentDisplay {
     processImage() {
         try {
             const gridMatch = this.params.gridSize.match(/^(\d+)x(\d+)$/);
-            const cols = parseInt(gridMatch[1]);
-            const rows = parseInt(gridMatch[2]);
+            const rows = parseInt(gridMatch[1]);
+            const cols = parseInt(gridMatch[2]);
             
             const segmentWidth = this.currentImage.width / cols;
             const segmentHeight = this.currentImage.height / rows;
