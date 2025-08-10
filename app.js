@@ -43,6 +43,81 @@ class GridSlideshowApp {
         // Reset buttons
         this.resetFromCountdownBtn = document.getElementById('reset-from-countdown');
         this.resetFromErrorBtn = document.getElementById('reset-from-error');
+
+        // Add mobile fullscreen detection
+        this.initializeMobileFullscreen();
+    }
+
+    // Add this new method to the GridSlideshowApp class
+    initializeMobileFullscreen() {
+        // Detect PWA standalone mode
+        const isPWAStandalone = () => {
+            return window.matchMedia('(display-mode: standalone)').matches || 
+                window.navigator.standalone || 
+                document.referrer.includes('android-app://');
+        };
+
+        // Add PWA class to body if in standalone mode
+        if (isPWAStandalone()) {
+            document.body.classList.add('pwa-standalone');
+        }
+
+        // Listen for orientation changes and resize canvas
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                if (this.currentState === 'slideshow') {
+                    this.resizeCanvasForMobile();
+                }
+            }, 500);
+        });
+
+        window.addEventListener('resize', () => {
+            if (this.currentState === 'slideshow') {
+                this.resizeCanvasForMobile();
+            }
+        });
+    }
+
+    resizeCanvasForMobile() {
+        if (!this.imageCanvas || !this.canvasContext) return;
+
+        const isMobile = window.innerWidth <= 768;
+        const isPWA = document.body.classList.contains('pwa-standalone');
+
+        if (isMobile && isPWA && this.currentState === 'slideshow') {
+            // Force canvas to use full viewport dimensions
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            // Get the current image being displayed
+            const currentImage = new Image();
+            currentImage.src = this.availableImages[this.currentImageIndex];
+            
+            currentImage.onload = () => {
+                // Calculate the canvas size to fit the viewport while maintaining aspect ratio
+                const imgAspectRatio = currentImage.width / currentImage.height;
+                const viewportAspectRatio = viewportWidth / viewportHeight;
+                
+                let canvasWidth, canvasHeight;
+                
+                if (imgAspectRatio > viewportAspectRatio) {
+                    // Image is wider than viewport
+                    canvasWidth = viewportWidth;
+                    canvasHeight = viewportWidth / imgAspectRatio;
+                } else {
+                    // Image is taller than viewport
+                    canvasHeight = viewportHeight;
+                    canvasWidth = viewportHeight * imgAspectRatio;
+                }
+                
+                // Update canvas dimensions
+                this.imageCanvas.width = canvasWidth;
+                this.imageCanvas.height = canvasHeight;
+                
+                // Redraw the current image segment with new dimensions
+                this.displayImageSegment(currentImage);
+            };
+        }
     }
 
     bindEvents() {
@@ -222,6 +297,9 @@ class GridSlideshowApp {
         console.log('Starting slideshow'); // Debug log
         this.switchToState('slideshow');
         this.currentImageIndex = 0;
+        // Add mobile fullscreen setup
+        this.setupMobileFullscreen();
+        
         this.loadAndDisplayImage();
         
         this.slideShowInterval = setInterval(() => {
@@ -229,6 +307,29 @@ class GridSlideshowApp {
                 this.nextImage();
             }
         }, this.slideInterval);
+    }
+
+    setupMobileFullscreen() {
+        const isMobile = window.innerWidth <= 768;
+        const isPWA = document.body.classList.contains('pwa-standalone');
+        
+        if (isMobile && isPWA) {
+            // Add mobile fullscreen class
+            this.slideshowContainer.classList.add('mobile-fullscreen');
+            
+            // Hide slideshow header on mobile fullscreen (optional)
+            const slideshowHeader = this.slideshowContainer.querySelector('.slideshow-header');
+            if (slideshowHeader) {
+                slideshowHeader.style.display = 'none';
+            }
+            
+            // Force viewport meta tag for better mobile handling
+            let viewportMeta = document.querySelector('meta[name="viewport"]');
+            if (viewportMeta) {
+                viewportMeta.setAttribute('content', 
+                    'width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no');
+            }
+        }
     }
 
     loadAndDisplayImage() {
@@ -253,23 +354,69 @@ class GridSlideshowApp {
     }
 
     displayImageSegment(img) {
-        const segmentWidth = Math.floor(img.width / this.config.gridCols);
-        const segmentHeight = Math.floor(img.height / this.config.gridRows);
+        const isMobile = window.innerWidth <= 768;
+        const isPWA = document.body.classList.contains('pwa-standalone');
         
-        const sourceX = (this.config.targetCol - 1) * segmentWidth;
-        const sourceY = (this.config.targetRow - 1) * segmentHeight;
-        
-        // Set canvas size to segment dimensions
-        this.imageCanvas.width = segmentWidth;
-        this.imageCanvas.height = segmentHeight;
-        
-        // Draw the specific segment
-        this.canvasContext.drawImage(
-            img,
-            sourceX, sourceY, segmentWidth, segmentHeight,
-            0, 0, segmentWidth, segmentHeight
-        );
-    }
+        if (isMobile && isPWA && this.currentState === 'slideshow') {
+            // Mobile PWA fullscreen logic - FILL ENTIRE SCREEN
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            // Calculate segment dimensions based on original image
+            const segmentWidth = Math.floor(img.width / this.config.gridCols);
+            const segmentHeight = Math.floor(img.height / this.config.gridRows);
+            const sourceX = (this.config.targetCol - 1) * segmentWidth;
+            const sourceY = (this.config.targetRow - 1) * segmentHeight;
+            
+            // Set canvas to EXACTLY fill the viewport
+            this.imageCanvas.width = viewportWidth;
+            this.imageCanvas.height = viewportHeight;
+            
+            // Calculate scaling to fill screen (may crop image to avoid white space)
+            const segmentAspectRatio = segmentWidth / segmentHeight;
+            const viewportAspectRatio = viewportWidth / viewportHeight;
+            
+            let drawWidth, drawHeight, offsetX = 0, offsetY = 0;
+            
+            if (segmentAspectRatio > viewportAspectRatio) {
+                // Image is wider - scale to fill height, crop width if needed
+                drawHeight = viewportHeight;
+                drawWidth = viewportHeight * segmentAspectRatio;
+                offsetX = -(drawWidth - viewportWidth) / 2; // Center horizontally
+            } else {
+                // Image is taller - scale to fill width, crop height if needed
+                drawWidth = viewportWidth;
+                drawHeight = viewportWidth / segmentAspectRatio;
+                offsetY = -(drawHeight - viewportHeight) / 2; // Center vertically
+            }
+            
+            // Clear canvas with black background first
+            this.canvasContext.fillStyle = 'black';
+            this.canvasContext.fillRect(0, 0, viewportWidth, viewportHeight);
+            
+            // Draw the segment scaled to fill entire screen
+            this.canvasContext.drawImage(
+                img,
+                sourceX, sourceY, segmentWidth, segmentHeight,
+                offsetX, offsetY, drawWidth, drawHeight
+            );
+        } else {
+            // Original desktop logic (unchanged)
+            const segmentWidth = Math.floor(img.width / this.config.gridCols);
+            const segmentHeight = Math.floor(img.height / this.config.gridRows);
+            const sourceX = (this.config.targetCol - 1) * segmentWidth;
+            const sourceY = (this.config.targetRow - 1) * segmentHeight;
+
+            this.imageCanvas.width = segmentWidth;
+            this.imageCanvas.height = segmentHeight;
+
+            this.canvasContext.drawImage(
+                img,
+                sourceX, sourceY, segmentWidth, segmentHeight,
+                0, 0, segmentWidth, segmentHeight
+            );
+        }
+    }   
 
     updateImageInfo() {
         const imageName = this.availableImages[this.currentImageIndex];
