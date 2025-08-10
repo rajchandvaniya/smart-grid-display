@@ -3,47 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Segment Display</title>
+    <title>Grid Segment Slideshow</title>
     <link rel="stylesheet" href="style.css">
+
+    <!-- iOS PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- Android PWA Meta Tags -->  
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#218085">
+
+    <!-- Critical viewport for fullscreen -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 </head>
 <body>
-    <!-- Loading Indicator -->
-    <div id="loadingIndicator" class="loading-container">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">Loading image segment...</div>
-    </div>
+    <div class="container">
+        <!-- Form State -->
+        <div id="form-container" class="state-container">
+            <div class="card">
+                <div class="card__header">
+                    <h1>Slideshow Configuration</h1>
+                    <p class="form-description">Configure your image grid slideshow settings</p>
+                </div>
+                <div class="card__body">
+                    <form id="slideshow-form">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="grid-rows" class="form-label">Grid Rows</label>
+                                <input type="number" id="grid-rows" class="form-control" min="1" max="100" value="3" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="grid-cols" class="form-label">Grid Columns</label>
+                                <input type="number" id="grid-cols" class="form-control" min="1" max="100" value="4" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="target-row" class="form-label">Target Row</label>
+                                <select id="target-row" class="form-control" required>
+                                    <option value="1">Row 1</option>
+                                    <option value="2">Row 2</option>
+                                    <option value="3">Row 3</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="target-col" class="form-label">Target Column</label>
+                                <select id="target-col" class="form-control" required>
+                                    <option value="1">Column 1</option>
+                                    <option value="2">Column 2</option>
+                                    <option value="3">Column 3</option>
+                                    <option value="4">Column 4</option>
+                                </select>
+                            </div>
+                        </div>
 
-    <!-- Main Display Container -->
-    <div id="displayContainer" class="display-container hidden">
-        <canvas id="segmentCanvas" class="segment-canvas"></canvas>
-        
-    </div>
+                        <div class="form-group">
+                            <label for="start-time" class="form-label">Start Time</label>
+                            <input type="datetime-local" id="start-time" class="form-control" required>
+                        </div>
 
-    <!-- Error Display -->
-    <div id="errorContainer" class="error-container hidden">
-        <div class="error-icon">⚠️</div>
-        <h2 class="error-title">Error Loading Segment</h2>
-        <p id="errorMessage" class="error-message">Unable to display image segment</p>
-        <div class="error-details">
-            <div class="error-detail-item">
-                <strong>Expected URL format:</strong><br>
-                <code>?imageName=1.jpeg&gridSize=4x3&row=1&column=2</code>
-            </div>
-            <div class="error-detail-item">
-                <strong>Available images:</strong> 1.png, 2.png, 3.jpg, 4.png, 5.jpg, 6.jpg
-            </div>
-            <div class="error-detail-item">
-                <strong>Grid sizes:</strong> Format like "4x3" (rows x columns)
-            </div>
-            <div class="error-detail-item">
-                <strong>Position:</strong> Row and column numbers start from 1
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn--primary btn--full-width">Start Slideshow</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
-        <button id="retryBtn" class="btn btn--primary">Retry</button>
-    </div>
 
-    <!-- Hidden canvas for image processing -->
-    <canvas id="processingCanvas" class="processing-canvas"></canvas>
+        <!-- Countdown State -->
+        <div id="countdown-container" class="state-container hidden">
+            <div class="card">
+                <div class="card__header">
+                    <div id="settings-summary" class="settings-summary"></div>
+                </div>
+                <div class="card__body">
+                    <div class="countdown-display">
+                        <div id="countdown-timer" class="countdown-timer">00:00:00</div>
+                    </div>
+                    <div class="form-actions">
+                        <button id="reset-from-countdown" class="btn btn--outline">Reset Configuration</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slideshow State -->
+        <div id="slideshow-container" class="state-container hidden">
+            <div class="image-container">
+                <canvas id="image-canvas"></canvas>
+                <div id="loading-indicator" class="loading-indicator">Loading image...</div>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div id="error-container" class="state-container hidden">
+            <div class="card">
+                <div class="card__body">
+                    <div class="error-message">
+                        <h3>Error</h3>
+                        <p id="error-text"></p>
+                        <button id="reset-from-error" class="btn btn--primary">Back to Form</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="app.js"></script>
 </body>

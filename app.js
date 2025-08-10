@@ -1,356 +1,383 @@
-// Image Segment Display System
-class ImageSegmentDisplay {
+class GridSlideshowApp {
     constructor() {
-        this.params = this.parseURLParams();
-        this.supportedFormats = ['png', 'jpeg', 'jpg', 'gif'];
-        this.availableImages= ['1.png','2.png','3.jpg','4.png','5.jpg','6.jpg'];
-        this.maxGridSize = { rows: 100, cols: 100 };
-        this.currentImage = null;
-        this.infoVisible = true;
+        this.availableImages = ["1.png", "2.png", "3.jpg", "4.png", "5.jpg", "6.jpg"];
+        this.slideInterval = 10000; // 10 seconds
+        this.currentImageIndex = 0;
+        this.countdownInterval = null;
+        this.slideShowInterval = null;
+        this.startTime = null;
+        this.config = {};
+        this.currentState = 'form';
         
-        this.init();
+        this.initializeElements();
+        this.bindEvents();
+        this.setMinDateTime();
+        this.updateGridOptions();
     }
 
-    parseURLParams() {
-        const urlParams = new URLSearchParams(window.location.search);
-        return {
-            imageName: urlParams.get('imageName'),
-            gridSize: urlParams.get('gridSize'), 
-            row: parseInt(urlParams.get('row')),
-            column: parseInt(urlParams.get('column'))
-        };
+    initializeElements() {
+        // Form elements
+        this.formContainer = document.getElementById('form-container');
+        this.slideshowForm = document.getElementById('slideshow-form');
+        this.gridRowsInput = document.getElementById('grid-rows');
+        this.gridColsInput = document.getElementById('grid-cols');
+        this.targetRowSelect = document.getElementById('target-row');
+        this.targetColSelect = document.getElementById('target-col');
+        this.startTimeInput = document.getElementById('start-time');
+
+        // Countdown elements
+        this.countdownContainer = document.getElementById('countdown-container');
+        this.countdownTimer = document.getElementById('countdown-timer');
+        this.settingsSummary = document.getElementById('settings-summary');
+
+        // Slideshow elements
+        this.slideshowContainer = document.getElementById('slideshow-container');
+        this.imageCanvas = document.getElementById('image-canvas');
+        this.canvasContext = this.imageCanvas.getContext('2d');
+        this.loadingIndicator = document.getElementById('loading-indicator');
+
+        // Error elements
+        this.errorContainer = document.getElementById('error-container');
+        this.errorText = document.getElementById('error-text');
+
+        // Reset buttons
+        this.resetFromCountdownBtn = document.getElementById('reset-from-countdown');
+        this.resetFromErrorBtn = document.getElementById('reset-from-error');
     }
 
-    init() {
-        this.setupEventListeners();
-        this.updateUI();
-        this.validateAndLoad();
-    }
-
-    setupEventListeners() {
-        const toggleBtn = document.getElementById('toggleInfoBtn');
-        const retryBtn = document.getElementById('retryBtn');
-        
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', () => this.toggleInfo());
-        }
-        
-        if (retryBtn) {
-            retryBtn.addEventListener('click', () => this.retry());
-        }
-        
-        // Handle window resize
-        window.addEventListener('resize', () => {
-            if (this.currentImage) {
-                this.displaySegment();
-            }
+    bindEvents() {
+        this.slideshowForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            console.log('Form submitted'); // Debug log
+            this.handleFormSubmit(e);
         });
         
-        // Handle keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'i' || e.key === 'I') {
-                this.toggleInfo();
-            } else if (e.key === 'r' || e.key === 'R') {
-                this.retry();
+        this.gridRowsInput.addEventListener('input', () => this.updateGridOptions());
+        this.gridColsInput.addEventListener('input', () => this.updateGridOptions());
+        
+        this.resetFromCountdownBtn.addEventListener('click', () => this.resetToForm());
+        this.resetFromErrorBtn.addEventListener('click', () => this.resetToForm());
+    }
+
+    setMinDateTime() {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() + 1); // Minimum 1 minute from now
+        this.startTimeInput.min = this.formatDateTimeLocal(now);
+        
+        // Set default to 5 minutes from now
+        const defaultTime = new Date();
+        defaultTime.setMinutes(defaultTime.getMinutes() + 5);
+        this.startTimeInput.value = this.formatDateTimeLocal(defaultTime);
+    }
+
+    formatDateTimeLocal(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+
+    updateGridOptions() {
+        const rows = parseInt(this.gridRowsInput.value) || 1;
+        const cols = parseInt(this.gridColsInput.value) || 1;
+
+        // Store current selections
+        const currentRow = this.targetRowSelect.value;
+        const currentCol = this.targetColSelect.value;
+
+        // Update row options
+        this.targetRowSelect.innerHTML = '';
+        for (let i = 1; i <= rows; i++) {
+            const option = document.createElement('option');
+            option.value = i;
+            option.textContent = `Row ${i}`;
+            if (i.toString() === currentRow || (currentRow === '' && i === 1)) {
+                option.selected = true;
             }
-        });
-    }
+            this.targetRowSelect.appendChild(option);
+        }
 
-    updateUI() {
-        const currentImageName = document.getElementById('currentImageName');
-        const currentGridSize = document.getElementById('currentGridSize');
-        const currentPosition = document.getElementById('currentPosition');
-        
-        if (currentImageName) {
-            currentImageName.textContent = this.params.imageName || '-';
-        }
-        
-        if (currentGridSize) {
-            currentGridSize.textContent = this.params.gridSize || '-';
-        }
-        
-        if (currentPosition) {
-            const row = this.params.row;
-            const col = this.params.column;
-            currentPosition.textContent = (row && col) ? `${row},${col}` : '-';
-        }
-    }
-
-    validateAndLoad() {
-        try {
-            // Validate parameters
-            const validation = this.validateParams();
-            if (!validation.valid) {
-                this.showError(validation.error);
-                return;
+        // Update column options
+        this.targetColSelect.innerHTML = '';
+        for (let i = 1; i <= cols; i++) {
+            const option = document.createElement('option');
+            option.value = i;
+            option.textContent = `Column ${i}`;
+            if (i.toString() === currentCol || (currentCol === '' && i === 1)) {
+                option.selected = true;
             }
-            
-            // Load and process image
-            this.loadImage();
-            
-        } catch (error) {
-            console.error('Error in validateAndLoad:', error);
-            this.showError('An unexpected error occurred while loading the image segment.');
+            this.targetColSelect.appendChild(option);
         }
     }
 
-    validateParams() {
-        // Check if all required parameters are present
-        if (!this.params.imageName) {
-            return {
-                valid: false,
-                error: 'Missing imageName parameter. Please specify the image file name.'
-            };
-        }
+    handleFormSubmit(e) {
+        console.log('Handling form submit'); // Debug log
         
-        if (!this.params.gridSize) {
-            return {
-                valid: false,
-                error: 'Missing gridSize parameter. Please specify grid dimensions (e.g., "4x3").'
-            };
-        }
-        
-        if (!this.params.row || !this.params.column) {
-            return {
-                valid: false,
-                error: 'Missing row or column parameter. Please specify both row and column numbers.'
-            };
-        }
-        
-        // Validate grid size format
-        const gridMatch = this.params.gridSize.match(/^(\d+)x(\d+)$/);
-        if (!gridMatch) {
-            return {
-                valid: false,
-                error: 'Invalid gridSize format. Use format like "4x3" (rows x columns).'
-            };
-        }
-        
-        const rows = parseInt(gridMatch[1]);
-        const cols = parseInt(gridMatch[2]);
-        
-        if (cols < 1 || rows < 1 || cols > this.maxGridSize.cols || rows > this.maxGridSize.rows) {
-            return {
-                valid: false,
-                error: `Invalid grid size. Columns and rows must be between 1 and ${this.maxGridSize.cols}.`
-            };
-        }
-        
-        // Validate position
-        if (this.params.row < 1 || this.params.row > rows) {
-            return {
-                valid: false,
-                error: `Invalid row number. Row must be between 1 and ${rows}.`
-            };
-        }
-        
-        if (this.params.column < 1 || this.params.column > cols) {
-            return {
-                valid: false,
-                error: `Invalid column number. Column must be between 1 and ${cols}.`
-            };
-        }
-        
-        // Validate image format
-        const extension = this.params.imageName.toLowerCase().split('.').pop();
-        if (!this.supportedFormats.includes(extension)) {
-            return {
-                valid: false,
-                error: `Unsupported image format. Supported formats: ${this.supportedFormats.join(', ')}`
-            };
-        }
-        
-        return { valid: true };
-    }
-
-    loadImage() {
-        this.showLoading();
-        
-        // Try to load from assets (in case images are actually provided)
-        const img = new Image();
-        img.onload = () => {
-            this.currentImage = img;
-            this.processImage();
-        };
-        img.onerror = () => {
-            this.showError(`Image not found: ${this.params.imageName}. Available images: ${Object.keys(this.availableImages).join(', ')}`);
-        };
-        img.src = this.params.imageName;
-    }
-
-    processImage() {
-        try {
-            const gridMatch = this.params.gridSize.match(/^(\d+)x(\d+)$/);
-            const rows = parseInt(gridMatch[1]);
-            const cols = parseInt(gridMatch[2]);
-            
-            const segmentWidth = this.currentImage.width / cols;
-            const segmentHeight = this.currentImage.height / rows;
-            
-            const sourceX = (this.params.column - 1) * segmentWidth;
-            const sourceY = (this.params.row - 1) * segmentHeight;
-            
-            this.segmentData = {
-                sourceX,
-                sourceY,
-                segmentWidth,
-                segmentHeight,
-                cols,
-                rows
-            };
-            
-            this.displaySegment();
-            
-        } catch (error) {
-            console.error('Error processing image:', error);
-            this.showError('Failed to process image segment.');
-        }
-    }
-
-    displaySegment() {
-        const canvas = document.getElementById('segmentCanvas');
-        const ctx = canvas.getContext('2d');
-        
-        if (!canvas || !ctx || !this.currentImage || !this.segmentData) {
+        if (!this.validateForm()) {
+            console.log('Form validation failed'); // Debug log
             return;
         }
+
+        this.config = {
+            gridRows: parseInt(this.gridRowsInput.value),
+            gridCols: parseInt(this.gridColsInput.value),
+            targetRow: parseInt(this.targetRowSelect.value),
+            targetCol: parseInt(this.targetColSelect.value),
+            startTime: new Date(this.startTimeInput.value)
+        };
+
+        console.log('Configuration:', this.config); // Debug log
+        this.startCountdown();
+    }
+
+    validateForm() {
+        let isValid = true;
+
+        // Clear previous errors
+        document.querySelectorAll('.form-control').forEach(el => el.classList.remove('error'));
+        document.querySelectorAll('.form-error').forEach(el => el.remove());
+
+        // Validate grid dimensions
+        const rows = parseInt(this.gridRowsInput.value);
+        const cols = parseInt(this.gridColsInput.value);
         
-        // Calculate display size while maintaining aspect ratio
-        const containerWidth = window.innerWidth;
-        const containerHeight = window.innerHeight;
-        const aspectRatio = this.segmentData.segmentWidth / this.segmentData.segmentHeight;
+        if (!rows || rows < 1 || rows > 100) {
+            this.showFieldError(this.gridRowsInput, 'Rows must be between 1 and 100');
+            isValid = false;
+        }
+
+        if (!cols || cols < 1 || cols > 100) {
+            this.showFieldError(this.gridColsInput, 'Columns must be between 1 and 100');
+            isValid = false;
+        }
+
+        // Validate start time
+        const startTime = new Date(this.startTimeInput.value);
+        const now = new Date();
         
-        let displayWidth = this.segmentData.segmentWidth;
-        let displayHeight = this.segmentData.segmentHeight;
+        if (isNaN(startTime.getTime())) {
+            this.showFieldError(this.startTimeInput, 'Please select a valid start time');
+            isValid = false;
+        } else if (startTime <= now) {
+            this.showFieldError(this.startTimeInput, 'Start time must be in the future');
+            isValid = false;
+        }
+
+        console.log('Form validation result:', isValid); // Debug log
+        return isValid;
+    }
+
+    showFieldError(field, message) {
+        field.classList.add('error');
+        const errorElement = document.createElement('span');
+        errorElement.className = 'form-error';
+        errorElement.textContent = message;
+        field.parentNode.appendChild(errorElement);
+    }
+
+    startCountdown() {
+        console.log('Starting countdown'); // Debug log
+        this.switchToState('countdown');
+        this.updateSettingsSummary();
         
-        // Scale to fit screen
-        const scaleX = (containerWidth * 0.95) / displayWidth;
-        const scaleY = (containerHeight * 0.95) / displayHeight;
-        const scale = Math.min(scaleX, scaleY, 2); // Cap at 2x for quality
+        // Update countdown immediately
+        const now = new Date();
+        const timeLeft = this.config.startTime - now;
+        this.updateCountdownDisplay(timeLeft);
         
-        displayWidth *= scale;
-        displayHeight *= scale;
+        this.countdownInterval = setInterval(() => {
+            const now = new Date();
+            const timeLeft = this.config.startTime - now;
+            
+            if (timeLeft <= 0) {
+                clearInterval(this.countdownInterval);
+                this.startSlideshow();
+            } else {
+                this.updateCountdownDisplay(timeLeft);
+            }
+        }, 1000);
+    }
+
+    updateSettingsSummary() {
+        const summary = `
+            Grid: ${this.config.gridRows} × ${this.config.gridCols} | 
+            Target: Row ${this.config.targetRow}, Column ${this.config.targetCol} | 
+            Start: ${this.config.startTime.toLocaleString()}
+        `;
+        this.settingsSummary.textContent = summary;
+    }
+
+    updateCountdownDisplay(timeLeft) {
+        const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+        const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
         
-        canvas.width = displayWidth;
-        canvas.height = displayHeight;
+        this.countdownTimer.textContent = 
+            `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    startSlideshow() {
+        console.log('Starting slideshow'); // Debug log
+        this.switchToState('slideshow');
+        this.currentImageIndex = 0;
+        this.loadAndDisplayImage();
         
-        // Clear canvas
-        ctx.clearRect(0, 0, displayWidth, displayHeight);
+        this.slideShowInterval = setInterval(() => {
+            if (!this.isPaused) {
+                this.nextImage();
+            }
+        }, this.slideInterval);
+    }
+
+    loadAndDisplayImage() {
+        const imageName = this.availableImages[this.currentImageIndex];
+        this.showLoadingIndicator(true);
+        this.updateImageInfo();
+        // this.startImageProgressBar();
         
-        // Draw the segment
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
+        const img = new Image();
+        img.onload = () => {
+            this.displayImageSegment(img);
+            this.showLoadingIndicator(false);
+        };
         
-        ctx.drawImage(
-            this.currentImage,
-            this.segmentData.sourceX,
-            this.segmentData.sourceY,
-            this.segmentData.segmentWidth,
-            this.segmentData.segmentHeight,
-            0,
-            0,
-            displayWidth,
-            displayHeight
+        img.onerror = () => {
+            console.warn(`Failed to load image: ${imageName}`);
+            this.showLoadingIndicator(false);
+            this.nextImage(); // Skip to next image
+        };
+        
+        img.src = imageName;
+    }
+
+    displayImageSegment(img) {
+        const segmentWidth = Math.floor(img.width / this.config.gridCols);
+        const segmentHeight = Math.floor(img.height / this.config.gridRows);
+        
+        const sourceX = (this.config.targetCol - 1) * segmentWidth;
+        const sourceY = (this.config.targetRow - 1) * segmentHeight;
+        
+        // Set canvas size to segment dimensions
+        this.imageCanvas.width = segmentWidth;
+        this.imageCanvas.height = segmentHeight;
+        
+        // Draw the specific segment
+        this.canvasContext.drawImage(
+            img,
+            sourceX, sourceY, segmentWidth, segmentHeight,
+            0, 0, segmentWidth, segmentHeight
         );
+    }
+
+    updateImageInfo() {
+        const imageName = this.availableImages[this.currentImageIndex];
+    }
+
+    startImageProgressBar() {
+        let progress = 0;
+        this.imageTimerBar.style.width = '0%';
         
-        this.showDisplay();
+        clearInterval(this.imageProgressInterval);
+        this.imageProgressInterval = setInterval(() => {
+            if (!this.isPaused) {
+                progress += 100;
+                const percentage = (progress / this.slideInterval) * 100;
+                this.imageTimerBar.style.width = `${Math.min(percentage, 100)}%`;
+            }
+        }, 100);
     }
 
-    showLoading() {
-        this.hideAll();
-        document.getElementById('loadingIndicator').classList.remove('hidden');
+    nextImage() {
+        this.currentImageIndex++;
+        
+        if (this.currentImageIndex >= this.availableImages.length) {
+            this.endSlideshow();
+        } else {
+            this.loadAndDisplayImage();
+        }
     }
 
-    showDisplay() {
-        this.hideAll();
-        document.getElementById('displayContainer').classList.remove('hidden');
+    endSlideshow() {
+        clearInterval(this.slideShowInterval);
+        clearInterval(this.imageProgressInterval);
+    }
+
+    showLoadingIndicator(show) {
+        this.loadingIndicator.style.display = show ? 'flex' : 'none';
+    }
+
+    switchToState(state) {
+        console.log('Switching to state:', state); // Debug log
+        
+        // Hide all states
+        this.formContainer.classList.add('hidden');
+        this.countdownContainer.classList.add('hidden');
+        this.slideshowContainer.classList.add('hidden');
+        this.errorContainer.classList.add('hidden');
+        
+        // Show target state
+        switch (state) {
+            case 'form':
+                this.formContainer.classList.remove('hidden');
+                break;
+            case 'countdown':
+                this.countdownContainer.classList.remove('hidden');
+                break;
+            case 'slideshow':
+                this.slideshowContainer.classList.remove('hidden');
+                break;
+            case 'error':
+                this.errorContainer.classList.remove('hidden');
+                break;
+        }
+        
+        this.currentState = state;
     }
 
     showError(message) {
-        this.hideAll();
-        const errorContainer = document.getElementById('errorContainer');
-        const errorMessage = document.getElementById('errorMessage');
+        this.errorText.textContent = message;
+        this.switchToState('error');
+    }
+
+    resetToForm() {
+        console.log('Resetting to form'); // Debug log
         
-        if (errorMessage) {
-            errorMessage.textContent = message;
+        // Clear all intervals
+        clearInterval(this.countdownInterval);
+        clearInterval(this.slideShowInterval);
+        clearInterval(this.imageProgressInterval);
+        
+        // Reset state
+        this.isPaused = false;
+        this.currentImageIndex = 0;
+        // this.pauseBtn.classList.remove('hidden');
+        // this.resumeBtn.classList.add('hidden');
+        
+        // Clear canvas
+        if (this.canvasContext) {
+            this.canvasContext.clearRect(0, 0, this.imageCanvas.width, this.imageCanvas.height);
         }
         
-        errorContainer.classList.remove('hidden');
-    }
-
-    hideAll() {
-        document.getElementById('loadingIndicator').classList.add('hidden');
-        document.getElementById('displayContainer').classList.add('hidden');
-        document.getElementById('errorContainer').classList.add('hidden');
-    }
-
-    toggleInfo() {
-        const segmentInfo = document.getElementById('segmentInfo');
-        const toggleBtn = document.getElementById('toggleInfoBtn');
+        // Reset progress bar
+        // this.imageTimerBar.style.width = '0%';
         
-        if (segmentInfo && toggleBtn) {
-            this.infoVisible = !this.infoVisible;
-            
-            if (this.infoVisible) {
-                segmentInfo.classList.remove('hidden');
-                toggleBtn.setAttribute('aria-label', 'Hide segment information');
-            } else {
-                segmentInfo.classList.add('hidden');
-                toggleBtn.setAttribute('aria-label', 'Show segment information');
-            }
-        }
-    }
-
-    retry() {
-        window.location.reload();
+        // Switch to form
+        this.switchToState('form');
+        
+        // Reset form validation
+        document.querySelectorAll('.form-control').forEach(el => el.classList.remove('error'));
+        document.querySelectorAll('.form-error').forEach(el => el.remove());
+        
+        // Reset form values to defaults
+        this.setMinDateTime();
+        this.updateGridOptions();
     }
 }
 
-// Error handling
-window.addEventListener('error', (e) => {
-    console.error('Global error:', e.error);
-    
-    const errorContainer = document.getElementById('errorContainer');
-    const errorMessage = document.getElementById('errorMessage');
-    
-    if (errorContainer && errorMessage) {
-        errorMessage.textContent = 'A technical error occurred. Please refresh the page and try again.';
-        
-        document.getElementById('loadingIndicator').classList.add('hidden');
-        document.getElementById('displayContainer').classList.add('hidden');
-        errorContainer.classList.remove('hidden');
-    }
-});
-
-// Initialize application when DOM is ready
+// Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Initializing Image Segment Display...');
-    try {
-        window.imageSegmentDisplay = new ImageSegmentDisplay();
-        console.log('Image Segment Display initialized successfully');
-    } catch (error) {
-        console.error('Failed to initialize Image Segment Display:', error);
-        
-        // Fallback error display
-        const errorContainer = document.getElementById('errorContainer');
-        const errorMessage = document.getElementById('errorMessage');
-        
-        if (errorContainer && errorMessage) {
-            errorMessage.textContent = 'Failed to initialize the application. Please refresh the page.';
-            
-            document.getElementById('loadingIndicator').classList.add('hidden');
-            document.getElementById('displayContainer').classList.add('hidden');
-            errorContainer.classList.remove('hidden');
-        }
-    }
-});
-
-// Handle page visibility changes
-document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && window.imageSegmentDisplay) {
-        // Refresh display when page becomes visible
-        if (window.imageSegmentDisplay.currentImage) {
-            window.imageSegmentDisplay.displaySegment();
-        }
-    }
+    console.log('Initializing Grid Slideshow App'); // Debug log
+    new GridSlideshowApp();
 });

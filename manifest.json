@@ -1,0 +1,26 @@
+{
+  "name": "Grid Slideshow Display",
+  "short_name": "GridShow",
+  "description": "Interactive grid slideshow for synchronized multi-device displays",
+  "start_url": "/?source=pwa",
+  "id": "/?source=pwa",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "theme_color": "#218085",
+  "background_color": "#1f2121",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png", 
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "scope": "/",
+  "categories": ["utilities", "multimedia"],
+  "lang": "en"
+}
