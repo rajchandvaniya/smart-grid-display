@@ -1,7 +1,7 @@
 {
   "name": "Hariprabodham",
   "short_name": "HP",
-  "start_url": "/",
+  "start_url": "/smart-grid-display/",
   "display": "standalone",
   "display_override": ["fullscreen", "standalone"],
   "orientation": "portrait",
