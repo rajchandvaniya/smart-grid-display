@@ -50,31 +50,24 @@ class GridSlideshowApp {
 
     // Add this new method to the GridSlideshowApp class
     initializeMobileFullscreen() {
-        // Detect PWA standalone mode
         const isPWAStandalone = () => {
-            return window.matchMedia('(display-mode: standalone)').matches || 
-                window.navigator.standalone || 
-                document.referrer.includes('android-app://');
+            return window.matchMedia('(display-mode: standalone)').matches ||
+                window.navigator.standalone ||
+                document.referrer.includes('android-app://') ||
+                // Check for PWA launch from home screen
+                !window.matchMedia('(display-mode: browser)').matches;
         };
-
-        // Add PWA class to body if in standalone mode
+        
         if (isPWAStandalone()) {
             document.body.classList.add('pwa-standalone');
+            console.log('Running as PWA');
         }
-
-        // Listen for orientation changes and resize canvas
-        window.addEventListener('orientationchange', () => {
-            setTimeout(() => {
-                if (this.currentState === 'slideshow') {
-                    this.resizeCanvasForMobile();
-                }
-            }, 500);
-        });
-
-        window.addEventListener('resize', () => {
-            if (this.currentState === 'slideshow') {
-                this.resizeCanvasForMobile();
-            }
+        
+        // Add install prompt handling
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('PWA is installable');
+            // Store the event for later use
+            window.deferredPrompt = e;
         });
     }
 
