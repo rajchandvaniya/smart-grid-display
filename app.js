@@ -460,9 +460,11 @@ class GridSlideshowApp {
         this.currentImageIndex++;
 
         if (this.currentImageIndex >= this.preloadedImages.length) {
-            this.currentImageIndex = 0; // Loop back to the first image
+            console.log('Slideshow ended'); // Debug log
+            this.endSlideshow(); // End the slideshow
+            return;
         }
-
+    
         this.loadAndDisplayImage();
     }
 
