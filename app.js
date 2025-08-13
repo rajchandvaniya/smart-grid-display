@@ -1,6 +1,7 @@
 class GridSlideshowApp {
     constructor() {
         this.availableImages = ["1.png", "2.png", "3.jpg", "4.png", "5.jpg", "6.jpg"];
+        this.preloadedImages = []; // Array to store preloaded images
         this.slideInterval = 10000; // 10 seconds
         this.currentImageIndex = 0;
         this.countdownInterval = null;
@@ -8,11 +9,41 @@ class GridSlideshowApp {
         this.startTime = null;
         this.config = {};
         this.currentState = 'form';
-        
+
         this.initializeElements();
         this.bindEvents();
         this.setMinDateTime();
         this.updateGridOptions();
+    }
+
+    preloadImages() {
+        console.log('Preloading images...'); // Debug log
+        this.preloadedImages = [];
+        let loadedCount = 0;
+
+        return new Promise((resolve, reject) => {
+            this.availableImages.forEach((imageName, index) => {
+                const img = new Image();
+                img.src = imageName;
+
+                img.onload = () => {
+                    this.preloadedImages[index] = img;
+                    loadedCount++;
+                    if (loadedCount === this.availableImages.length) {
+                        console.log('All images preloaded'); // Debug log
+                        resolve();
+                    }
+                };
+
+                img.onerror = () => {
+                    console.warn(`Failed to preload image: ${imageName}`);
+                    loadedCount++;
+                    if (loadedCount === this.availableImages.length) {
+                        resolve(); // Resolve even if some images fail to load
+                    }
+                };
+            });
+        });
     }
 
     initializeElements() {
@@ -249,16 +280,21 @@ class GridSlideshowApp {
         console.log('Starting countdown'); // Debug log
         this.switchToState('countdown');
         this.updateSettingsSummary();
-        
+
+        // Preload images during the countdown
+        this.preloadImages().then(() => {
+            console.log('Images preloaded before slideshow starts'); // Debug log
+        });
+
         // Update countdown immediately
         const now = new Date();
         const timeLeft = this.config.startTime - now;
         this.updateCountdownDisplay(timeLeft);
-        
+
         this.countdownInterval = setInterval(() => {
             const now = new Date();
             const timeLeft = this.config.startTime - now;
-            
+
             if (timeLeft <= 0) {
                 clearInterval(this.countdownInterval);
                 this.startSlideshow();
@@ -292,9 +328,9 @@ class GridSlideshowApp {
         this.currentImageIndex = 0;
         // Add mobile fullscreen setup
         this.setupMobileFullscreen();
-        
+
         this.loadAndDisplayImage();
-        
+
         this.slideShowInterval = setInterval(() => {
             if (!this.isPaused) {
                 this.nextImage();
@@ -326,30 +362,21 @@ class GridSlideshowApp {
     }
 
     loadAndDisplayImage() {
-        const imageName = this.availableImages[this.currentImageIndex];
-        this.showLoadingIndicator(true);
-        this.updateImageInfo();
-        // this.startImageProgressBar();
-        
-        const img = new Image();
-        img.onload = () => {
-            this.displayImageSegment(img);
-            this.showLoadingIndicator(false);
-        };
-        
-        img.onerror = () => {
-            console.warn(`Failed to load image: ${imageName}`);
-            this.showLoadingIndicator(false);
-            this.nextImage(); // Skip to next image
-        };
-        
-        img.src = imageName;
+        const img = this.preloadedImages[this.currentImageIndex];
+        if (!img) {
+            console.warn('Image not preloaded, skipping to next image');
+            this.nextImage();
+            return;
+        }
+
+        this.showLoadingIndicator(false); // Hide loading indicator since images are preloaded
+        this.displayImageSegment(img);
     }
 
     displayImageSegment(img) {
         const isMobile = window.innerWidth <= 768;
         const isPWA = document.body.classList.contains('pwa-standalone');
-        
+
         if (isMobile && isPWA && this.currentState === 'slideshow') {
             // Mobile PWA fullscreen logic - FILL ENTIRE SCREEN
             const viewportWidth = window.innerWidth;
@@ -404,12 +431,12 @@ class GridSlideshowApp {
             this.imageCanvas.height = segmentHeight;
 
             this.canvasContext.drawImage(
-                img,
+            img,
                 sourceX, sourceY, segmentWidth, segmentHeight,
                 0, 0, segmentWidth, segmentHeight
             );
         }
-    }   
+    } 
 
     updateImageInfo() {
         const imageName = this.availableImages[this.currentImageIndex];
@@ -431,12 +458,12 @@ class GridSlideshowApp {
 
     nextImage() {
         this.currentImageIndex++;
-        
-        if (this.currentImageIndex >= this.availableImages.length) {
-            this.endSlideshow();
-        } else {
-            this.loadAndDisplayImage();
+
+        if (this.currentImageIndex >= this.preloadedImages.length) {
+            this.currentImageIndex = 0; // Loop back to the first image
         }
+
+        this.loadAndDisplayImage();
     }
 
     endSlideshow() {
