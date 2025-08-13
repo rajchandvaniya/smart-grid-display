@@ -376,48 +376,55 @@ class GridSlideshowApp {
     displayImageSegment(img) {
         const isMobile = window.innerWidth <= 768;
         const isPWA = document.body.classList.contains('pwa-standalone');
-
+    
+        // Average bezel size in pixels (adjust this value based on your setup)
+        const averageBezel = 10; // Example: 10 pixels of bezel on each side
+    
         if (isMobile && isPWA && this.currentState === 'slideshow') {
-            // Mobile PWA fullscreen logic - FILL ENTIRE SCREEN
             const viewportWidth = window.innerWidth;
             const viewportHeight = window.innerHeight;
-            
+    
             // Calculate segment dimensions based on original image
             const segmentWidth = Math.floor(img.width / this.config.gridCols);
             const segmentHeight = Math.floor(img.height / this.config.gridRows);
-            const sourceX = (this.config.targetCol - 1) * segmentWidth;
-            const sourceY = (this.config.targetRow - 1) * segmentHeight;
-            
-            // Set canvas to EXACTLY fill the viewport
+    
+            // Adjust for bezels
+            const adjustedSegmentWidth = segmentWidth - 2 * averageBezel;
+            const adjustedSegmentHeight = segmentHeight - 2 * averageBezel;
+    
+            const sourceX = (this.config.targetCol - 1) * segmentWidth + averageBezel;
+            const sourceY = (this.config.targetRow - 1) * segmentHeight + averageBezel;
+    
+            // Set canvas to fill the viewport
             this.imageCanvas.width = viewportWidth;
             this.imageCanvas.height = viewportHeight;
-            
+    
             // Calculate scaling to fill screen (may crop image to avoid white space)
-            const segmentAspectRatio = segmentWidth / segmentHeight;
+            const segmentAspectRatio = adjustedSegmentWidth / adjustedSegmentHeight;
             const viewportAspectRatio = viewportWidth / viewportHeight;
-            
+    
             let drawWidth, drawHeight, offsetX = 0, offsetY = 0;
-            
+    
             if (segmentAspectRatio > viewportAspectRatio) {
                 // Image is wider - scale to fill height, crop width if needed
                 drawHeight = viewportHeight;
                 drawWidth = viewportHeight * segmentAspectRatio;
-                offsetX = -(drawWidth - viewportWidth) / 2; // Center horizontally
+                offsetX = -(drawWidth - viewportWidth) / 2;
             } else {
                 // Image is taller - scale to fill width, crop height if needed
                 drawWidth = viewportWidth;
                 drawHeight = viewportWidth / segmentAspectRatio;
-                offsetY = -(drawHeight - viewportHeight) / 2; // Center vertically
+                offsetY = -(drawHeight - viewportHeight) / 2;
             }
-            
+    
             // Clear canvas with black background first
             this.canvasContext.fillStyle = 'black';
             this.canvasContext.fillRect(0, 0, viewportWidth, viewportHeight);
-            
-            // Draw the segment scaled to fill entire screen
+    
+            // Draw the segment scaled to fill the entire screen
             this.canvasContext.drawImage(
                 img,
-                sourceX, sourceY, segmentWidth, segmentHeight,
+                sourceX, sourceY, adjustedSegmentWidth, adjustedSegmentHeight,
                 offsetX, offsetY, drawWidth, drawHeight
             );
         } else {
@@ -426,17 +433,17 @@ class GridSlideshowApp {
             const segmentHeight = Math.floor(img.height / this.config.gridRows);
             const sourceX = (this.config.targetCol - 1) * segmentWidth;
             const sourceY = (this.config.targetRow - 1) * segmentHeight;
-
+    
             this.imageCanvas.width = segmentWidth;
             this.imageCanvas.height = segmentHeight;
-
+    
             this.canvasContext.drawImage(
-            img,
+                img,
                 sourceX, sourceY, segmentWidth, segmentHeight,
                 0, 0, segmentWidth, segmentHeight
             );
         }
-    } 
+    }
 
     updateImageInfo() {
         const imageName = this.availableImages[this.currentImageIndex];
